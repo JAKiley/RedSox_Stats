@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Red Sox Stats</title>
+        <style>
+            table {
+                border-collapse: collapse;
+                margin-top: 1rem;
+            }
+
+            th,
+            td {
+                border: 1px solid #ccc;
+                padding: 0.4rem 0.8rem;
+                text-align: center;
+            }
+
+            th {
+                background: #eee;
+            }
+
+            td.left {
+                text-align: left;
+            }
+
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                line-height: 1.5;
+            }
+
+            h1,
+            h2 {
+                color: #c8102e;
+            }
+
+            .thClickable {
+                background-color: #eee;
+                cursor: pointer;
+            }
+
+            tr:nth-child(even) {
+                background-color: #f8f8f8;
+            }
+
+            a {
+                text-decoration: none;
+                color: #004080;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Red Sox Daily Report</h1>
+        <h2>⚾ Red Sox Game Info</h2>
+        <div id="status">Loading...</div>
+        <div id="summary"
+             style="display:none;">
+            <p>Game Summary</p>
+        </div>
+        <div id="standings"
+             style="display:none;">
+            <h2>📊 Standings (AL East)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Team</th>
+                        <th>W</th>
+                        <th>L</th>
+                        <th>GB</th>
+                        <th>Elim</th>
+                        <th>WC Rank</th>
+                        <th>WC GB</th>
+                        <th>WC Elim</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div id="transactions"
+             style="display:none;">
+            <h2>📋 Recent Transactions</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Player</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <div id="roster"
+             style="display:none;">
+            <h2>🧢 Current Roster (Sortable)</h2>
+            <table id="rosterTable">
+                <thead>
+                    <tr>
+                        <th class='thClickable'
+                            onclick="sortTable(0)">Name</th>
+                        <th class='thClickable'
+                            onclick="sortTable(1)">Position</th>
+                        <th class='thClickable'
+                            onclick="sortTable(2)">Number</th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+        <script>
+            function sortTable(n) {
+                var table = document.getElementById("rosterTable");
+                var switching = true;
+                var dir = "asc";
+                var switchcount = 0;
+
+                while (switching) {
+                    switching = false;
+                    var rows = table.rows;
+
+                    for (var i = 1; i < rows.length - 1; i++) {
+                        var shouldSwitch = false;
+                        var x = rows[i].getElementsByTagName("TD")[n];
+                        var y = rows[i + 1].getElementsByTagName("TD")[n];
+
+                        if (dir === "asc" && x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                        if (dir === "desc" && x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                            shouldSwitch = true;
+                            break;
+                        }
+                    }
+
+                    if (shouldSwitch) {
+                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                        switching = true;
+                        switchcount++;
+                    } else {
+                        if (switchcount === 0 && dir === "asc") {
+                            dir = "desc";
+                            switching = true;
+                        }
+                    }
+                }
+            }
+            async function loadSched() {
+                try {
+                    const res = await fetch("/api/redsox_sched");
+                    if (!res.ok) throw new Error("Network response was not ok");
+                    const data = await res.json();
+
+                    document.getElementById("summary").textContent = data.summary;
+
+                    document.getElementById("status").style.display = "none";
+                    document.getElementById("summary").style.display = "block";
+                } catch (err) {
+                    document.getElementById("status").textContent = "Error loading stats.";
+                    console.error(err);
+                }
+            }
+            async function loadStandings() {
+                try {
+                    const res = await fetch("/api/redsox_standings");
+                    if (!res.ok) throw new Error("Network response was not ok");
+                    const records = await res.json();
+
+                    const tbody = document.querySelector("#standings tbody");
+                    tbody.innerHTML = "";
+
+                    for (const r of records) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                    <td>${r.rank}</td>
+                    <td class="left">${r.team}</td>
+                    <td>${r.wins}</td>
+                    <td>${r.losses}</td>
+                    <td>${r.gb}</td>
+                    <td>${r.elim}</td>
+                    <td>${r.wc_rank}</td>
+                    <td>${r.wc_gb}</td>
+                    <td>${r.wc_elim}</td>
+                `;
+                        tbody.appendChild(tr);
+                    }
+
+                    document.getElementById("status").style.display = "none";
+                    document.getElementById("standings").style.display = "block";
+                } catch (err) {
+                    document.getElementById("status").textContent = "Error loading stats.";
+                    console.error(err);
+                }
+            }
+            async function loadTransactions() {
+                try {
+                    const res = await fetch("/api/redsox_transactions");
+                    if (!res.ok) throw new Error("Network response was not ok");
+                    const records = await res.json();
+
+                    const tbody = document.querySelector("#transactions tbody");
+                    tbody.innerHTML = "";
+
+                    for (const r of records) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                    <td>${r.date}</td>
+                    <td class="left">${r.description}</td>
+                    <td><a href='${r.formatted_link}' target='_blank'>${r.player}</a></td>
+                `;
+                        tbody.appendChild(tr);
+                    }
+
+
+                    document.getElementById("status").style.display = "none";
+                    document.getElementById("transactions").style.display = "block";
+                } catch (err) {
+                    document.getElementById("status").textContent = "Error loading stats.";
+                    console.error(err);
+                }
+            }
+            async function loadRoster() {
+                try {
+                    const res = await fetch("/api/redsox_roster");
+                    if (!res.ok) throw new Error("Network response was not ok");
+                    const records = await res.json();
+
+                    const tbody = document.querySelector("#roster tbody");
+                    tbody.innerHTML = "";
+
+                    for (const r of records) {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                    <td class="left">${r.name}</td>
+                    <td class="left">${r.position}</td>
+                    <td>${r.number}</td>
+                `;
+                        tbody.appendChild(tr);
+                    }
+
+
+                    document.getElementById("status").style.display = "none";
+                    document.getElementById("roster").style.display = "block";
+                } catch (err) {
+                    document.getElementById("status").textContent = "Error loading stats.";
+                    console.error(err);
+                }
+            }
+
+            // Load once on page load
+            loadSched();
+            loadStandings();
+            loadTransactions();
+            loadRoster();
+
+            // Optional: refresh every 60 seconds
+            // setInterval(loadStats, 60000);
+        </script>
+    </body>
+</html>
