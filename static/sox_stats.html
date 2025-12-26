@@ -4,20 +4,54 @@
         <meta charset="utf-8">
         <title>Red Sox Stats</title>
         <style>
+            .report-title {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                flex-wrap: wrap;
+                /* allows wrapping if needed */
+                margin: 0;
+            }
+
+            .report-logo {
+                width: 5.25rem;
+                height: auto;
+                flex: 0 0 auto;
+            }
+
+            .report-text {
+                line-height: 1.1;
+            }
+
+            /* Mobile: stack and center */
+            @media (max-width: 480px) {
+                .report-title {
+                    flex-direction: column;
+                    text-align: center;
+                    gap: 0.5rem;
+                }
+
+                .report-logo {
+                    width: 4rem;
+                    /* slightly smaller on phones */
+                }
+            }
+
             table {
                 border-collapse: collapse;
-                margin-top: 1rem;
+                margin: 1rem auto
             }
 
             th,
             td {
-                border: 1px solid #ccc;
+                border: 1px solid black;
                 padding: 0.4rem 0.8rem;
                 text-align: center;
+                color: white
             }
 
             th {
-                background: #eee;
+                background: #2da35c;
             }
 
             td.left {
@@ -28,30 +62,47 @@
                 font-family: Arial, sans-serif;
                 padding: 20px;
                 line-height: 1.5;
+                background-color: #d5eadd;
             }
 
-            h1,
+            h1 {
+                color: #1045BA;
+            }
+
             h2 {
-                color: #c8102e;
+                color: firebrick;
+                margin: 1rem auto;
+                text-align: center;
             }
 
             .thClickable {
-                background-color: #eee;
+                background-color: #2da35c;
                 cursor: pointer;
             }
 
+            tr:nth-child(odd) {
+                background-color: #6fca74;
+            }
+
             tr:nth-child(even) {
-                background-color: #f8f8f8;
+                background-color: #2da35c
             }
 
             a {
-                text-decoration: none;
-                color: #004080;
+                text-decoration: underline;
+                color: gold
             }
         </style>
     </head>
     <body>
-        <h1>Red Sox Daily Report</h1>
+        <h1 class="report-title">
+            <img src="/static/Wally with clipboard.png"
+                 alt="Wally the Red Sox Mascot"
+                 class="report-logo" />
+            <span class="report-text">
+    Red Sox Daily Report for <span id="currentDate"></span>
+            </span>
+        </h1>
         <h2>⚾ Red Sox Game Info</h2>
         <div id="status">Loading...</div>
         <div id="summary"
@@ -150,6 +201,14 @@
                     }
                 }
             }
+            let currentDate = document.querySelector("#currentDate");
+            const date = new Date();
+            currentDate.textContent = date.toLocaleString("en-US", {
+                timeZone: "America/Chicago",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+            });
             async function loadSched() {
                 try {
                     const res = await fetch("/api/redsox_sched");
@@ -253,6 +312,7 @@
             }
 
             // Load once on page load
+
             loadSched();
             loadStandings();
             loadTransactions();
