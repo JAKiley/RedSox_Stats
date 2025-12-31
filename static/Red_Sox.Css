@@ -1,0 +1,93 @@
+.report-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  /* allows wrapping if needed */
+  margin: 0;
+}
+
+.report-logo {
+  width: 5.25rem;
+  height: auto;
+  flex: 0 0 auto;
+}
+
+.report-text {
+  line-height: 1.1;
+}
+
+/* Mobile: stack and center */
+@media (max-width: 480px) {
+  .report-title {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
+  }
+
+  .report-logo {
+    width: 4rem;
+    /* slightly smaller on phones */
+  }
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1rem auto;
+}
+
+th,
+td {
+  border: 1px solid black;
+  padding: 0.4rem 0.8rem;
+  text-align: center;
+  color: white;
+}
+
+th {
+  background: #2da35c;
+}
+
+td.left {
+  text-align: left;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  line-height: 1.5;
+  background-color: #d5eadd;
+}
+
+h1 {
+  color: #1045ba;
+}
+
+h2 {
+  color: firebrick;
+  margin: 1rem auto;
+  text-align: center;
+}
+
+h3 {
+  margin: 0.5rem auto;
+  text-align: center;
+}
+
+.thClickable {
+  background-color: #2da35c;
+  cursor: pointer;
+}
+
+tr:nth-child(odd) {
+  background-color: #6fca74;
+}
+
+tr:nth-child(even) {
+  background-color: #2da35c;
+}
+
+a {
+  text-decoration: underline;
+  color: gold;
+}

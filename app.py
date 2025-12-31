@@ -89,7 +89,7 @@ def redsox_api2():
 @app.route("/api/redsox_transactions")
 def redsox_api3():
     
-    transaction = statsapi.get('transactions', {
+    transactions = statsapi.get('transactions', {
         'teamId': 111,
         'startDate': aweek_ago.strftime('%Y-%m-%d'),
         'endDate': today.strftime('%Y-%m-%d')
@@ -97,22 +97,27 @@ def redsox_api3():
     
     records = []
     
-    if not transaction:
-            json_string = '{"Description": "No Red Sox transactions this past week"}'
-            records = json.loads(json_string)
-    else:
-        for t in transaction['transactions']:
-            if 'person' not in t:
-                continue  # skip this item
+    for transaction in transactions.get('transactions', []):
+        person = transaction.get('person')
 
-            link = f"https://www.mlb.com/player/{t['person']['fullName']}-{t['person']['id']}"
-            formatted_link = link.lower().replace(" ", "-")
-            
-            records.append({
-                "date": t['date'],
-                "description": t['description'],
+        if not person:
+            # No person attached to this transaction
+            continue
+
+        full_name = person.get('fullName')
+        person_id = person.get('id')
+
+        if not full_name or not person_id:
+            continue
+
+        link = f"https://www.mlb.com/player/{full_name}-{person_id}"
+        formatted_link = link.lower().replace(" ", "-")
+
+        records.append({
+            "date": transaction['date'],
+            "description": transaction['description'],
                 "formatted_link": formatted_link,
-                "player": t['person']['fullName']
+                "player": full_name
         })  
             
     return jsonify(records)
@@ -136,12 +141,14 @@ def redsox_api4():
             number = parts[0]
             position = parts[1]
             name = " ".join(parts[2:])
+            sortName = f"{parts[3]} {parts[2]}"
         else:
             number = ""
             position = parts[0]
             name = " ".join(parts[1:])
+            sortName = f"{parts[2]} {parts[1]}"
 
-        records.append({"number": number, "position": position, "name": name})
+        records.append({"number": number, "position": position, "name": name, "sortName": sortName})
             
     return jsonify(records)
 
