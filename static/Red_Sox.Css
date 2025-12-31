@@ -3,7 +3,6 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  /* allows wrapping if needed */
   margin: 0;
 }
 
