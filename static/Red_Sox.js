@@ -73,21 +73,40 @@ async function loadStandings() {
     const tbody = document.querySelector("#standings tbody");
     tbody.innerHTML = "";
 
+    // Guard clause for empty data
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = `
+    <tr>
+      <td colspan="9" class="center">No standings data available.</td>
+    </tr>
+  `;
+      document.getElementById("status").style.display = "none";
+      document.getElementById("standings").style.display = "block";
+      return;
+    }
+
+    // Build rows efficiently
+    const fragment = document.createDocumentFragment();
+
     for (const r of records) {
       const tr = document.createElement("tr");
+
       tr.innerHTML = `
-                    <td>${r.rank}</td>
-                    <td class="left">${r.team}</td>
-                    <td>${r.wins}</td>
-                    <td>${r.losses}</td>
-                    <td>${r.gb}</td>
-                    <td>${r.elim}</td>
-                    <td>${r.wc_rank}</td>
-                    <td>${r.wc_gb}</td>
-                    <td>${r.wc_elim}</td>
-                `;
-      tbody.appendChild(tr);
+    <td>${r.rank}</td>
+    <td class="left">${r.team}</td>
+    <td>${r.wins}</td>
+    <td>${r.losses}</td>
+    <td>${r.gb}</td>
+    <td>${r.elim}</td>
+    <td>${r.wc_rank}</td>
+    <td>${r.wc_gb}</td>
+    <td>${r.wc_elim}</td>
+  `;
+
+      fragment.appendChild(tr);
     }
+
+    tbody.appendChild(fragment);
 
     document.getElementById("status").style.display = "none";
     document.getElementById("standings").style.display = "block";
@@ -105,6 +124,20 @@ async function loadTransactions() {
     const tbody = document.querySelector("#transactions tbody");
     tbody.innerHTML = "";
 
+    // Guard clause for empty data
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = `
+    <tr>
+      <td colspan="9" class="center">No transactions data available.</td>
+    </tr>
+  `;
+      document.getElementById("status").style.display = "none";
+      document.getElementById("transactions").style.display = "block";
+      return;
+    }
+    // Build rows efficiently
+    const fragment = document.createDocumentFragment();
+
     for (const r of records) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
@@ -112,8 +145,10 @@ async function loadTransactions() {
                     <td class="left">${r.description}</td>
                     <td><a href='${r.formatted_link}' target='_blank'>${r.player}</a></td>
                 `;
-      tbody.appendChild(tr);
+      fragment.appendChild(tr);
     }
+
+    tbody.appendChild(fragment);
 
     document.getElementById("status").style.display = "none";
     document.getElementById("transactions").style.display = "block";
@@ -134,7 +169,7 @@ async function loadRoster() {
     for (const r of records) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
-                    <td data-sort="${r.sortName}" class="left">${r.name}</td>
+                    <td data-sort="${r.sortName}" class="left"><a href='${r.formatted_link}' target='_blank'>${r.name}</a></td>
                     <td class="left">${r.position}</td>
                     <td>${r.number}</td>
                 `;

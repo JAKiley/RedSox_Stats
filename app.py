@@ -31,8 +31,10 @@ def redsox_api2():
 #  3   Boston Red Sox        89  73  5.0   E      2    +2.0   -  
 #  4   Tampa Bay Rays        77  85  17.0  E      7    10.0   E  
 #  5   Baltimore Orioles     75  87  19.0  E      9    12.0   E  
-
     records = []
+    
+    if not standing:
+        return jsonify(records)
     
     for line in standing.splitlines():
         # Remove leading/trailing whitespace
@@ -96,6 +98,9 @@ def redsox_api3():
         })
     
     records = []
+
+    if not transactions:
+        return jsonify(records)
     
     for transaction in transactions.get('transactions', []):
         person = transaction.get('person')
@@ -125,30 +130,38 @@ def redsox_api3():
 @app.route("/api/redsox_roster")
 def redsox_api4():
     
-    roster = statsapi.roster(111)   
-    
+    teamRoster = statsapi.get('team_roster', {
+    'teamId': 111, 
+})
+
     records = []
-    
-    for line in roster.splitlines():
-        line = line.strip()
-        if not line or not line.startswith("#"):
+    for roster in teamRoster.get('roster', []):
+        person = roster.get('person')
+
+        if not person:
+            print("No person attached to this roster entry")
             continue
+        full_name = person.get('fullName')
+        player_id = person.get('id')
+        name_slug = full_name.lower().replace(" ", "-")
+        formatted_link = f"https://www.mlb.com/player/{name_slug}-{player_id}"
 
-        line = line[1:].strip()
-        parts = line.split()
+        if not full_name:
+            continue
+        parts = full_name.split()
+        last = parts[-1]
+        first = " ".join(parts[:-1])
+        sortName = f"{last}, {first}"
+        position = roster.get('position', {}).get('abbreviation', 'N/A')
+        number = roster.get('jerseyNumber', 'N/A')
 
-        if parts[0].isdigit():
-            number = parts[0]
-            position = parts[1]
-            name = " ".join(parts[2:])
-            sortName = f"{parts[3]} {parts[2]}"
-        else:
-            number = ""
-            position = parts[0]
-            name = " ".join(parts[1:])
-            sortName = f"{parts[2]} {parts[1]}"
-
-        records.append({"number": number, "position": position, "name": name, "sortName": sortName})
+        records.append({
+        "number": number,
+        "position": position,
+        "name": full_name,
+        "formatted_link": formatted_link,
+        "sortName": sortName
+    })
             
     return jsonify(records)
 
