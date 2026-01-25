@@ -49,13 +49,134 @@ currentDate.textContent = date.toLocaleString("en-US", {
   month: "2-digit",
   day: "2-digit",
 });
+
 async function loadSched() {
   try {
     const res = await fetch("/api/redsox_sched");
     if (!res.ok) throw new Error("Network response was not ok");
     const data = await res.json();
 
-    document.getElementById("summary").textContent = data.summary;
+    let tbody = document.querySelector("#summary thead");
+    tbody.innerHTML = "";
+
+    let gameDate = document.querySelector("#gameDate");
+    const date = new Date(data.date);
+    gameDate.textContent = date.toLocaleString("en-US", {
+      timeZone: "America/Chicago",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    let fragment = document.createDocumentFragment();
+    let tr = document.createElement("tr");
+
+    // Status cell
+    const statusTh = document.createElement("th");
+    statusTh.textContent = data.gameStatus;
+    tr.appendChild(statusTh);
+
+    // Inning cells
+    for (const r of data.gameInnings) {
+      const th = document.createElement("th");
+      th.textContent = r;
+      tr.appendChild(th);
+    }
+    // R, H, E cells
+    const rTh = document.createElement("th");
+    rTh.textContent = "R";
+    rTh.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(rTh);
+
+    const hTh = document.createElement("th");
+    hTh.textContent = "H";
+    hTh.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(hTh);
+
+    const eTh = document.createElement("th");
+    eTh.textContent = "E";
+    eTh.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(eTh);
+
+    fragment.appendChild(tr);
+    tbody.appendChild(fragment);
+
+    tbody = document.querySelector("#summary tbody");
+    tbody.innerHTML = "";
+
+    fragment = document.createDocumentFragment();
+    tr = document.createElement("tr");
+
+    // Away team row
+    const awayTeamTd = document.createElement("td");
+    awayTeamTd.textContent = data.teams.away.name;
+    awayTeamTd.className = "left";
+    tr.appendChild(awayTeamTd);
+
+    // Inning cells
+    for (const r of data.teams.away.innings) {
+      const td = document.createElement("td");
+      td.textContent = r;
+      tr.appendChild(td);
+    }
+
+    // R, H, E cells
+    const awayRTd = document.createElement("td");
+    awayRTd.textContent = data.teams.away.R;
+    awayRTd.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(awayRTd);
+
+    const awayHTd = document.createElement("td");
+    awayHTd.textContent = data.teams.away.H;
+    awayHTd.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(awayHTd);
+
+    const awayETd = document.createElement("td");
+    awayETd.textContent = data.teams.away.E;
+    awayETd.className = "EHR-table-right EHR-table-left";
+
+    tr.appendChild(awayETd);
+
+    fragment.appendChild(tr);
+    tbody.appendChild(fragment);
+
+    fragment = document.createDocumentFragment();
+    tr = document.createElement("tr");
+
+    // Home team row
+    const homeTeamTd = document.createElement("td");
+    homeTeamTd.textContent = data.teams.home.name;
+    homeTeamTd.className = "left";
+    tr.appendChild(homeTeamTd);
+
+    // Inning cells
+    for (const r of data.teams.home.innings) {
+      const th = document.createElement("th");
+      th.textContent = r;
+      tr.appendChild(th);
+    }
+
+    // R, H, E cells
+    const homeRTd = document.createElement("td");
+    homeRTd.textContent = data.teams.home.R;
+    homeRTd.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(homeRTd);
+
+    const homeHTd = document.createElement("td");
+    homeHTd.textContent = data.teams.home.H;
+    homeHTd.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(homeHTd);
+
+    const homeETd = document.createElement("td");
+    homeETd.textContent = data.teams.home.E;
+    homeETd.className = "EHR-table-right EHR-table-left";
+    tr.appendChild(homeETd);
+
+    fragment.appendChild(tr);
+    tbody.appendChild(fragment);
+
+    fragment = document.createDocumentFragment();
+    tr = document.createElement("tr");
 
     document.getElementById("status").style.display = "none";
     document.getElementById("summary").style.display = "block";
@@ -64,6 +185,7 @@ async function loadSched() {
     console.error(err);
   }
 }
+
 async function loadStandings() {
   try {
     const res = await fetch("/api/redsox_standings");
@@ -115,6 +237,7 @@ async function loadStandings() {
     console.error(err);
   }
 }
+
 async function loadTransactions() {
   try {
     const res = await fetch("/api/redsox_transactions");
@@ -157,6 +280,7 @@ async function loadTransactions() {
     console.error(err);
   }
 }
+
 async function loadRoster() {
   try {
     const res = await fetch("/api/redsox_roster");
@@ -187,7 +311,7 @@ async function loadRoster() {
 
 // Load once on page load
 
-loadSched();
 loadStandings();
 loadTransactions();
 loadRoster();
+loadSched();
