@@ -50,7 +50,7 @@ currentDate.textContent = date.toLocaleString("en-US", {
   day: "2-digit",
 });
 
-async function loadSched() {
+async function loadGameInfo() {
   try {
     const res = await fetch("/api/redsox_sched");
     if (!res.ok) throw new Error("Network response was not ok");
@@ -311,7 +311,7 @@ async function loadRoster() {
 
 // Load once on page load
 
+loadGameInfo();
 loadStandings();
 loadTransactions();
 loadRoster();
-loadSched();
