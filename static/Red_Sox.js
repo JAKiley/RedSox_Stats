@@ -178,6 +178,26 @@ async function loadGameInfo() {
     fragment = document.createDocumentFragment();
     tr = document.createElement("tr");
 
+    if (data.nextGame.data === "Y") {
+      let nextGameDate = document.querySelector("#nextGameDate");
+      const nextDate = new Date(data.nextGame.date);
+      nextGameDate.textContent =
+        "Next Game: " +
+        nextDate.toLocaleString("en-US", {
+          timeZone: "America/Chicago",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+      let nextGameTeams = document.querySelector("#nextGameTeams");
+      nextGameTeams.textContent = `${data.nextGame.away} at ${data.nextGame.home}`;
+    } else {
+      let nextGameDate = document.querySelector("#nextGameDate");
+      nextGameDate.textContent = "No upcoming games scheduled.";
+      let nextGameTeams = document.querySelector("#nextGameTeams");
+      nextGameTeams.textContent = "";
+    }
+
     document.getElementById("status").style.display = "none";
     document.getElementById("summary").style.display = "block";
   } catch (err) {

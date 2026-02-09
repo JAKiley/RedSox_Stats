@@ -26,6 +26,20 @@ def game_to_json(game_pk: int) -> dict:
 
     home_totals = ls.get("teams", {}).get("home", {})
     away_totals = ls.get("teams", {}).get("away", {})
+    
+    next_game = statsapi.next_game(111)
+    print()
+    if next_game:
+        next_game_id = next_game['gamePk']
+        next_game_data = statsapi.get("game", {"gamePk": next_game_id})
+        next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
+        next_game_team_home = next_game_data["gameData"]["teams"]["home"]["team"]["name"]
+        next_game_team_away = next_game_data["gameData"]["teams"]["away"]["team"]["name"]
+        
+        print(next_game_team_home, "vs", next_game_team_away)
+        print(f"\n📅 Next Red Sox Game: {next_game_date}")
+    else:
+        print("\nNo upcoming game is scheduled.")
 
     return {
         "gamePk": game_pk,
@@ -54,6 +68,11 @@ def game_to_json(game_pk: int) -> dict:
                 "E": away_totals.get("errors"),
             },
         },
+        "nextGame": {
+            "data": 'Y' if next_game else 'N',
+            "date": next_game_date if next_game else None,
+            "home": next_game_team_home if next_game else None,
+            "away": next_game_team_away if next_game else None,}
     }
 
 @app.route("/api/redsox_sched")
