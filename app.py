@@ -4,12 +4,15 @@ import statsapi
 from datetime import date, timedelta
 import requests
 
-app = Flask(__name__, static_folder="static")
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 today = date.today()
 aweek_ago = date.today() - timedelta(days=7)
 
 def game_to_json(game_pk: int) -> dict:
     game = statsapi.get("game", {"gamePk": game_pk})
+    
+    if game is None:
+        return {"error": "Game data not found"}
     
     ls = requests.get(f"https://statsapi.mlb.com/api/v1/game/{game_pk}/linescore").json()
     
@@ -28,18 +31,16 @@ def game_to_json(game_pk: int) -> dict:
     away_totals = ls.get("teams", {}).get("away", {})
     
     next_game = statsapi.next_game(111)
-    print()
+    
     if next_game:
         next_game_id = next_game['gamePk']
         next_game_data = statsapi.get("game", {"gamePk": next_game_id})
-        next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
-        next_game_team_home = next_game_data["gameData"]["teams"]["home"]["team"]["name"]
-        next_game_team_away = next_game_data["gameData"]["teams"]["away"]["team"]["name"]
-        
-        print(next_game_team_home, "vs", next_game_team_away)
-        print(f"\n📅 Next Red Sox Game: {next_game_date}")
-    else:
-        print("\nNo upcoming game is scheduled.")
+        if next_game_data:
+            next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
+            next_game_team_home = next_game_data["gameData"]["teams"]["home"]["team"]["name"]
+            next_game_team_away = next_game_data["gameData"]["teams"]["away"]["team"]["name"]
+        else:
+            next_game = None
 
     return {
         "gamePk": game_pk,
@@ -78,13 +79,15 @@ def game_to_json(game_pk: int) -> dict:
 @app.route("/api/redsox_sched")
 def redsox_api():
     game_pk = statsapi.last_game(111)
+    if game_pk is None:
+        return jsonify({"error": "No game found"})
     payload = game_to_json(game_pk)
     return jsonify(payload)
 
 @app.route("/api/redsox_standings")
 def redsox_api2():
     
-    standing = statsapi.standings(leagueId=103, division=201)
+    standing = statsapi.standings(leagueId="103", division="201")
     
 # American League East Standings
 # Rank Team                   W   L   GB  (E#) WC Rank WC GB (E#)
@@ -197,6 +200,8 @@ def redsox_api4():
 })
 
     records = []
+    if not teamRoster:
+        return jsonify(records)
     for roster in teamRoster.get('roster', []):
         person = roster.get('person')
 
@@ -214,10 +219,15 @@ def redsox_api4():
         first = " ".join(parts[:-1])
         sortName = f"{last}, {first}"
         position = roster.get('position', {}).get('abbreviation', 'N/A')
-        number = roster.get('jerseyNumber', 'N/A')
+        number_str = roster.get('jerseyNumber')  # e.g."2" or "10"
+
+        if number_str and number_str.isdigit():
+           number_display = f"{int(number_str):02d}"   # "02", "10"
+        else:
+           number_display = None   # or "N/A"
 
         records.append({
-        "number": number,
+        "number": number_display,
         "position": position,
         "name": full_name,
         "formatted_link": formatted_link,
@@ -229,7 +239,7 @@ def redsox_api4():
 # Serve your index.html (e.g., in static/index.html)
 @app.route("/")
 def index():
-    return send_from_directory(app.static_folder, "sox_stats.html")
+    return send_from_directory(app.static_folder or "static", "sox_stats.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
