@@ -60,8 +60,7 @@ async function loadGameInfo() {
     tbody.innerHTML = "";
 
     let gameDate = document.querySelector("#gameDate");
-    const date = new Date(data.date);
-    gameDate.textContent = date.toLocaleString("en-US", {
+    gameDate.textContent = data.date.toLocaleString("en-US", {
       timeZone: "America/Chicago",
       year: "numeric",
       month: "2-digit",
@@ -181,6 +180,7 @@ async function loadGameInfo() {
     if (data.nextGame.data === "Y") {
       let nextGameDate = document.querySelector("#nextGameDate");
       const nextDate = new Date(data.nextGame.date);
+      console.log(nextDate);
       nextGameDate.textContent =
         "Next Game: " +
         nextDate.toLocaleString("en-US", {
