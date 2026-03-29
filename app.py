@@ -1,4 +1,6 @@
 # app.py
+import json
+
 from flask import Flask, jsonify, send_from_directory
 import statsapi
 from datetime import date, timedelta
@@ -32,28 +34,32 @@ def game_to_json(game_pk: int) -> dict:
     home_totals = ls.get("teams", {}).get("home", {})
     away_totals = ls.get("teams", {}).get("away", {})
     
-
     next_game_id = statsapi.next_game(111)
-    print(next_game_id)
+    
     if next_game_id:
         next_game_data = statsapi.get("game", {"gamePk": next_game_id})
+    # This saves the data to a file named 'game_info.json'
+    # with open('game_info.json', 'w') as f:
+    #     json.dump(next_game_data, f, indent=4)
     if next_game_data:
         next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
-        if "teams" in next_game_data["gameData"] and "home" in next_game_data["gameData"]["teams"] and "away" in next_game_data["gameData"]["teams"] and "team" in next_game_data["gameData"]["teams"]["home"] and "team" in next_game_data["gameData"]["teams"]["away"]:
-            next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
-            next_game_team_home = next_game_data["gameData"]["teams"]["home"]["team"]["name"]
-            next_game_team_away = next_game_data["gameData"]["teams"]["away"]["team"]["name"]     
+        next_game_time = next_game_data["gameData"]["datetime"]["time"]
+        next_game_ampm = next_game_data["gameData"]["datetime"]["ampm"]
+        print(next_game_date)
+        if "teams" in next_game_data["gameData"] :
+            next_game_team_home = next_game_data["gameData"]["teams"]["home"]["teamName"]
+            next_game_team_away = next_game_data["gameData"]["teams"]["away"]["teamName"]     
         else:
             next_game_id = None
-            next_game_date = date.today().strftime('%Y-%m-%d')
+            next_game_date = None
             next_game_team_home = " "
             next_game_team_away = " "
     else:
         next_game_id = None
-        next_game_date = date.today().strftime('%Y-%m-%d')
+        next_game_date = None
         next_game_team_home = " "
         next_game_team_away = " "
-    print(next_game_date)
+    
     return {
         "gamePk": game_pk,
         "date": game_date,
@@ -84,22 +90,25 @@ def game_to_json(game_pk: int) -> dict:
         "nextGame": {
             "data": 'Y' if next_game_id else 'N',
             "date": next_game_date if next_game_id else None,
+            "time": next_game_time if next_game_id else None,
+            "ampm": next_game_ampm if next_game_id else None,
             "home": next_game_team_home if next_game_id else None,
             "away": next_game_team_away if next_game_id else None,}
     }
 
 @app.route("/api/redsox_sched")
 def redsox_api():
-    game_pk = statsapi.last_game(111)
-    if game_pk is None:
+    # game_pk = statsapi.last_game(111)
+    # print('Last game PK:', game_pk)
+    # if game_pk is None:
         
-        # Get today's games for the Red Sox (111)
-        today_games = statsapi.schedule(team='111')
+    # Get today's games for the Red Sox (111)
+    today_games = statsapi.schedule(team='111')
 
-        if today_games:
+    if today_games:
         # Most common case is one game today
            game_pk = today_games[0]['game_id']
-        else:
+    else:
             return jsonify({"error": "No game found"})
     payload = game_to_json(game_pk)
     return jsonify(payload)

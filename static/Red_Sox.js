@@ -44,7 +44,6 @@ function sortTable(n) {
 let currentDate = document.querySelector("#currentDate");
 const date = new Date();
 currentDate.textContent = date.toLocaleString("en-US", {
-  timeZone: "America/Chicago",
   year: "numeric",
   month: "2-digit",
   day: "2-digit",
@@ -60,12 +59,10 @@ async function loadGameInfo() {
     tbody.innerHTML = "";
 
     let gameDate = document.querySelector("#gameDate");
-    gameDate.textContent = data.date.toLocaleString("en-US", {
-      timeZone: "America/Chicago",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
+    const rawDate = data.date;
+    const [year, month, day] = rawDate.split("-");
+    const formattedDate = `${month}/${day}/${year}`;
+    gameDate.textContent = formattedDate;
 
     let fragment = document.createDocumentFragment();
     let tr = document.createElement("tr");
@@ -179,18 +176,13 @@ async function loadGameInfo() {
 
     if (data.nextGame.data === "Y") {
       let nextGameDate = document.querySelector("#nextGameDate");
-      const nextDate = new Date(data.nextGame.date);
-      console.log(nextDate);
-      nextGameDate.textContent =
-        "Next Game: " +
-        nextDate.toLocaleString("en-US", {
-          timeZone: "America/Chicago",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
+      const rawNextGameDate = data.nextGame.date;
+      const [year, month, day] = rawNextGameDate.split("-");
+      const formattedNextGameDate = `${month}/${day}/${year}`;
+
+      nextGameDate.textContent = "Next Game: " + formattedNextGameDate;
       let nextGameTeams = document.querySelector("#nextGameTeams");
-      nextGameTeams.textContent = `${data.nextGame.away} at ${data.nextGame.home}`;
+      nextGameTeams.textContent = `${data.nextGame.away} at ${data.nextGame.home} - ${data.nextGame.time} ${data.nextGame.ampm}`;
     } else {
       let nextGameDate = document.querySelector("#nextGameDate");
       nextGameDate.textContent = "No upcoming games scheduled.";
