@@ -1,4 +1,4 @@
-Uses Phython, Flask and the MLB Stats API to get the current Red Sox information using HTML and Javascript.
+Uses Python, Flask and the MLB Stats API to get the current Red Sox information using HTML and Javascript.
 
 1. Last Red Sox Game Status
 2. Current Standings of AL East - the only division that really matters 😁

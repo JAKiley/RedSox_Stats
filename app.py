@@ -1,275 +1,205 @@
 # app.py
-import json
-
-from flask import Flask, jsonify, send_from_directory
-import statsapi
 from datetime import date, timedelta
-import requests
+
+from flask import Flask, jsonify, request, send_from_directory
+import statsapi
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
-today = date.today()
-aweek_ago = date.today() - timedelta(days=7)
+
+RED_SOX_ID = 111
+AMERICAN_LEAGUE_ID = 103
+AL_EAST_ID = 201
+
+
+def player_url(full_name: str, player_id: int) -> str:
+    """Build a player's mlb.com page link, e.g. https://www.mlb.com/player/rafael-devers-646240"""
+    name_slug = full_name.lower().replace(" ", "-")
+    return f"https://www.mlb.com/player/{name_slug}-{player_id}"
+
 
 def game_to_json(game_pk: int) -> dict:
     game = statsapi.get("game", {"gamePk": game_pk})
-    
-    if game is None:
-        return {"error": "Game data not found"}
-    ls = requests.get(f"https://statsapi.mlb.com/api/v1/game/{game_pk}/linescore").json()
-    
-    game_date = game["gameData"]["datetime"]["officialDate"]
-    if not game_date:
-        game_date = today.strftime('%Y-%m-%d')
-    
-    game_status = game["gameData"]["status"]["detailedState"]
+    game_data = game["gameData"]
 
-    home_team = game["gameData"]["teams"]["home"]
-    away_team = game["gameData"]["teams"]["away"]
+    # The game feed already includes the linescore, so no second request is needed
+    ls = game.get("liveData", {}).get("linescore", {})
+
+    game_date = game_data["datetime"]["officialDate"] or date.today().strftime('%Y-%m-%d')
+    game_status = game_data["status"]["detailedState"]
 
     innings = ls.get("innings", [])
-    home_innings = [inn.get("home", {}).get("runs", 0) for inn in innings]
-    away_innings = [inn.get("away", {}).get("runs", 0) for inn in innings]
-    game_innings = list(zip(range(1, len(away_innings) + 1)))    
+    game_innings = list(range(1, len(innings) + 1))
 
-    home_totals = ls.get("teams", {}).get("home", {})
-    away_totals = ls.get("teams", {}).get("away", {})
-    
-    next_game_id = statsapi.next_game(111)
-    
-    if next_game_id:
-        next_game_data = statsapi.get("game", {"gamePk": next_game_id})
-    # This saves the data to a file named 'game_info.json'
-    # with open('game_info.json', 'w') as f:
-    #     json.dump(next_game_data, f, indent=4)
-    if next_game_data:
-        next_game_date = next_game_data["gameData"]["datetime"]["officialDate"]
-        next_game_time = next_game_data["gameData"]["datetime"]["time"]
-        next_game_ampm = next_game_data["gameData"]["datetime"]["ampm"]
-        print(next_game_date)
-        if "teams" in next_game_data["gameData"] :
-            next_game_team_home = next_game_data["gameData"]["teams"]["home"]["teamName"]
-            next_game_team_away = next_game_data["gameData"]["teams"]["away"]["teamName"]     
-        else:
-            next_game_id = None
-            next_game_date = None
-            next_game_team_home = " "
-            next_game_team_away = " "
-    else:
-        next_game_id = None
-        next_game_date = None
-        next_game_team_home = " "
-        next_game_team_away = " "
-    
+    def team_json(side: str) -> dict:
+        team = game_data["teams"][side]
+        totals = ls.get("teams", {}).get(side, {})
+        return {
+            "id": team["id"],
+            "name": team["name"],
+            "teamName": team.get("teamName"),
+            "abbr": team.get("abbreviation"),
+            "innings": [inn.get(side, {}).get("runs", 0) for inn in innings],
+            "R": totals.get("runs"),
+            "H": totals.get("hits"),
+            "E": totals.get("errors"),
+        }
+
     return {
         "gamePk": game_pk,
         "date": game_date,
         "gameStatus": game_status,
         "gameInnings": game_innings,
         "teams": {
-            "home": {
-                "id": home_team["id"],
-                "name": home_team["name"],
-                "teamName": home_team.get("teamName"),
-                "abbr": home_team.get("abbreviation"),
-                "innings": home_innings,
-                "R": home_totals.get("runs"),
-                "H": home_totals.get("hits"),
-                "E": home_totals.get("errors"),
-            },
-            "away": {
-                "id": away_team["id"],
-                "name": away_team["name"],
-                "teamName": away_team.get("teamName"),
-                "abbr": away_team.get("abbreviation"),
-                "innings": away_innings,
-                "R": away_totals.get("runs"),
-                "H": away_totals.get("hits"),
-                "E": away_totals.get("errors"),
-            },
+            "home": team_json("home"),
+            "away": team_json("away"),
         },
-        "nextGame": {
-            "data": 'Y' if next_game_id else 'N',
-            "date": next_game_date if next_game_id else None,
-            "time": next_game_time if next_game_id else None,
-            "ampm": next_game_ampm if next_game_id else None,
-            "home": next_game_team_home if next_game_id else None,
-            "away": next_game_team_away if next_game_id else None,}
+        "nextGame": get_next_game(),
     }
 
-@app.route("/api/redsox_sched")
-def redsox_api():
-    # game_pk = statsapi.last_game(111)
-    # print('Last game PK:', game_pk)
-    # if game_pk is None:
-        
-    # Get today's games for the Red Sox (111)
-    today_games = statsapi.schedule(team='111')
 
+def get_next_game() -> dict:
+    """Return info about the Red Sox's next scheduled game, or {"data": "N"} if none."""
+    next_game_id = statsapi.next_game(RED_SOX_ID)
+    if not next_game_id:
+        return {"data": "N"}
+
+    game_data = statsapi.get("game", {"gamePk": next_game_id}).get("gameData", {})
+    teams = game_data.get("teams")
+    if not teams:
+        return {"data": "N"}
+
+    when = game_data["datetime"]
+    return {
+        "data": "Y",
+        "date": when["officialDate"],
+        "time": when["time"],
+        "ampm": when["ampm"],
+        "home": teams["home"]["teamName"],
+        "away": teams["away"]["teamName"],
+    }
+
+
+@app.route("/api/redsox_sched")
+def game_summary():
+    # Show today's game if there is one (the first, if it's a doubleheader),
+    # otherwise fall back to the most recent game
+    today_games = statsapi.schedule(team=RED_SOX_ID)
     if today_games:
-        # Most common case is one game today
-           game_pk = today_games[0]['game_id']
+        game_pk = today_games[0]['game_id']
     else:
-            return jsonify({"error": "No game found"})
-    payload = game_to_json(game_pk)
-    return jsonify(payload)
+        game_pk = statsapi.last_game(RED_SOX_ID)
+
+    if not game_pk:
+        return jsonify({"error": "No game found"}), 404
+
+    return jsonify(game_to_json(game_pk))
+
 
 @app.route("/api/redsox_standings")
-def redsox_api2():
-    
-    standing = statsapi.standings(leagueId="103", division="201")
-    
-# American League East Standings
-# Rank Team                   W   L   GB  (E#) WC Rank WC GB (E#)
-#  1   Toronto Blue Jays     94  68   -    -      -      -    -  
-#  2   New York Yankees      94  68   -    1      1      -    -  
-#  3   Boston Red Sox        89  73  5.0   E      2    +2.0   -  
-#  4   Tampa Bay Rays        77  85  17.0  E      7    10.0   E  
-#  5   Baltimore Orioles     75  87  19.0  E      9    12.0   E  
+def standings():
+    # standings_data returns structured dicts, keyed by division id:
+    # {201: {"div_name": "American League East", "teams": [{"name": ..., "w": 89, ...}]}}
+    data = statsapi.standings_data(leagueId=AMERICAN_LEAGUE_ID, division=AL_EAST_ID)
+    division = data.get(AL_EAST_ID) or data.get(str(AL_EAST_ID)) or {}
+
     records = []
-    
-    if not standing:
-        return jsonify(records)
-    
-    for line in standing.splitlines():
-        # Remove leading/trailing whitespace
-        line = line.strip()
-        
-        # Skip empty lines and lines starting with 'A' or 'R'
-        if not line or (line.startswith("A") or line.startswith("R")):
-            continue
+    for team in division.get("teams", []):
+        records.append({
+            "rank": team["div_rank"],
+            "team": team["name"],
+            "wins": team["w"],
+            "losses": team["l"],
+            "gb": team["gb"],
+            "elim": team["elim_num"],
+            "wc_rank": team["wc_rank"],
+            "wc_gb": team["wc_gb"],
+            "wc_elim": team["wc_elim_num"],
+        })
 
-        parts = line.split()
-        
-        # 1. Optional rank
-        if parts[0].isdigit():
-            rank = parts[0]
-            parts = parts[1:]  # drop rank from the list
-        else:
-            rank = ""
-
-        # 2. Find index of the first number = wins
-        win_index = next(i for i, p in enumerate(parts) if p.replace('.', '', 1).isdigit())
-
-        # 3. Team name = everything before wins
-        team = " ".join(parts[:win_index])
-
-        # 4. Wins / losses
-        wins = int(parts[win_index])
-        losses = int(parts[win_index + 1])
-
-        # 5. Remaining fields after wins/losses
-        remaining = parts[win_index + 2:]  # GB and beyond
-
-        gb = remaining[0] if len(remaining) > 0 else ""
-        elim = remaining[1] if len(remaining) > 1 else ""
-        wc_rank = remaining[2] if len(remaining) > 2 else ""
-        wc_gb = remaining[3] if len(remaining) > 3 else ""
-        wc_elim = remaining[4] if len(remaining) > 4 else ""
-
-        # Optionally strip parentheses like "(E#)" → "E#" or "--"
-        elim = elim.strip("()") if elim else ""
-        wc_elim = wc_elim.strip("()") if wc_elim else ""
-
-        records.append({"rank": rank,
-        "team": team,
-        "wins": wins,
-        "losses": losses,
-        "gb": gb,
-        "elim": elim,
-        "wc_rank": wc_rank,
-        "wc_gb": wc_gb,
-        "wc_elim": wc_elim})   
-        
     return jsonify(records)
 
+
 @app.route("/api/redsox_transactions")
-def redsox_api3():
-    
-    transactions = statsapi.get('transactions', {
-        'teamId': 111,
-        'startDate': aweek_ago.strftime('%Y-%m-%d'),
-        'endDate': today.strftime('%Y-%m-%d')
-        })
-    
+def transactions():
+    # Compute dates on each request so they stay current on a long-running server
+    today = date.today()
+    a_week_ago = today - timedelta(days=7)
+
+    data = statsapi.get('transactions', {
+        'teamId': RED_SOX_ID,
+        'startDate': a_week_ago.strftime('%Y-%m-%d'),
+        'endDate': today.strftime('%Y-%m-%d'),
+    })
+
     records = []
-
-    if not transactions:
-        return jsonify(records)
-    
-    for transaction in transactions.get('transactions', []):
-        person = transaction.get('person')
-
-        if not person:
-            # No person attached to this transaction
-            continue
-
+    for transaction in data.get('transactions', []):
+        person = transaction.get('person') or {}
         full_name = person.get('fullName')
         person_id = person.get('id')
 
+        # Skip transactions with no player attached
         if not full_name or not person_id:
             continue
-
-        link = f"https://www.mlb.com/player/{full_name}-{person_id}"
-        formatted_link = link.lower().replace(" ", "-")
 
         records.append({
             "date": transaction['date'],
             "description": transaction['description'],
-                "formatted_link": formatted_link,
-                "player": full_name
-        })  
-            
+            "formatted_link": player_url(full_name, person_id),
+            "player": full_name,
+        })
+
     return jsonify(records)
+
 
 @app.route("/api/redsox_roster")
-def redsox_api4():
-    
-    teamRoster = statsapi.get('team_roster', {
-    'teamId': 111, 
-})
+def roster():
+    data = statsapi.get('team_roster', {'teamId': RED_SOX_ID})
 
     records = []
-    if not teamRoster:
-        return jsonify(records)
-    for roster in teamRoster.get('roster', []):
-        person = roster.get('person')
-
-        if not person:
-            continue
+    for entry in data.get('roster', []):
+        person = entry.get('person') or {}
         full_name = person.get('fullName')
-        player_id = person.get('id')
-        name_slug = full_name.lower().replace(" ", "-")
-        formatted_link = f"https://www.mlb.com/player/{name_slug}-{player_id}"
-
         if not full_name:
             continue
-        parts = full_name.split()
-        last = parts[-1]
-        first = " ".join(parts[:-1])
-        sortName = f"{last}, {first}"
-        position = roster.get('position', {}).get('abbreviation', 'N/A')
-        number_str = roster.get('jerseyNumber')  # e.g."2" or "10"
 
+        parts = full_name.split()
+        sort_name = f"{parts[-1]}, {' '.join(parts[:-1])}"  # "Devers, Rafael"
+        position = entry.get('position', {}).get('abbreviation', 'N/A')
+
+        number_str = entry.get('jerseyNumber')  # e.g. "2" or "10"
         if number_str and number_str.isdigit():
-           number_display = f"{int(number_str):02d}"   # "02", "10"
+            number_display = f"{int(number_str):02d}"  # "02", "10"
         else:
-           number_display = None   # or "N/A"
+            number_display = None
 
         records.append({
-        "number": number_display,
-        "position": position,
-        "name": full_name,
-        "formatted_link": formatted_link,
-        "sortName": sortName
-    })
-            
+            "number": number_display,
+            "position": position,
+            "name": full_name,
+            "formatted_link": player_url(full_name, person.get('id')),
+            "sortName": sort_name,
+        })
+
     return jsonify(records)
 
-# Serve your index.html (e.g., in static/index.html)
+
+@app.errorhandler(Exception)
+def handle_error(err):
+    # If the MLB API is down or returns something unexpected, send JSON
+    # with a 502 status instead of Flask's HTML error page
+    if isinstance(err, HTTPException):
+        return err  # normal errors like 404 Not Found pass through unchanged
+    if request.path.startswith("/api/"):
+        app.logger.exception("API request failed")
+        return jsonify({"error": "Could not load data from MLB"}), 502
+    raise err
+
+
 @app.route("/")
 def index():
     return send_from_directory(app.static_folder or "static", "sox_stats.html")
 
+
 if __name__ == "__main__":
     app.run(debug=True)
-
