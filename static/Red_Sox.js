@@ -147,9 +147,9 @@ async function loadGameInfo() {
 
     // Inning cells
     for (const r of data.teams.home.innings) {
-      const th = document.createElement("th");
-      th.textContent = r;
-      tr.appendChild(th);
+      const td = document.createElement("td");
+      td.textContent = r;
+      tr.appendChild(td);
     }
 
     // R, H, E cells
@@ -303,11 +303,14 @@ async function loadRoster() {
     tbody.innerHTML = "";
 
     for (const r of records) {
+      // Players without a uniform number show a blank cell and sort to the bottom
+      const number = r.number ?? "";
+      const numberSort = r.number ?? "99999";
       const tr = document.createElement("tr");
       tr.innerHTML = `
                     <td data-sort="${r.sortName}" class="left"><a href='${r.formatted_link}' target='_blank'>${r.name}</a></td>
                     <td class="left">${r.position}</td>
-                    <td>${r.number}</td>
+                    <td data-sort="${numberSort}">${number}</td>
                 `;
       tbody.appendChild(tr);
     }
