@@ -198,6 +198,67 @@ async function loadGameInfo() {
   }
 }
 
+// Statuses where the game hasn't started, so the start time is what matters
+const NOT_STARTED = ["Scheduled", "Pre-Game", "Warmup"];
+
+async function loadUpcoming() {
+  try {
+    const res = await fetch("/api/redsox_upcoming");
+    if (!res.ok) throw new Error("Network response was not ok");
+    const records = await res.json();
+
+    const tbody = document.querySelector("#upcoming tbody");
+    tbody.innerHTML = "";
+
+    // Guard clause for empty data
+    if (!Array.isArray(records) || records.length === 0) {
+      tbody.innerHTML = `
+    <tr>
+      <td colspan="5" class="center">No Red Sox games in the next 7 days.</td>
+    </tr>
+  `;
+      document.getElementById("status").style.display = "none";
+      document.getElementById("upcoming").style.display = "block";
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    for (const r of records) {
+      const [year, month, day] = r.date.split("-");
+      const formattedDate = `${month}/${day}/${year}`;
+
+      // Show the start time before the game, otherwise its status (In Progress, Final, Postponed)
+      let when = r.status;
+      if (NOT_STARTED.includes(r.status)) {
+        when = new Date(r.datetime).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        });
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+                    <td>${formattedDate}</td>
+                    <td>${when}</td>
+                    <td class="left">${r.homeAway} ${r.opponent}</td>
+                    <td class="left">${r.venue}</td>
+                    <td class="left">${r.soxPitcher} vs ${r.oppPitcher}</td>
+                `;
+      fragment.appendChild(tr);
+    }
+
+    tbody.appendChild(fragment);
+
+    document.getElementById("status").style.display = "none";
+    document.getElementById("upcoming").style.display = "block";
+  } catch (err) {
+    document.getElementById("status").textContent = "Error loading stats.";
+    console.error(err);
+  }
+}
+
 async function loadStandings() {
   try {
     const res = await fetch("/api/redsox_standings");
@@ -372,6 +433,7 @@ async function loadRoster() {
 // Load once on page load
 
 loadGameInfo();
+loadUpcoming();
 loadStandings();
 loadLeaders();
 loadTransactions();

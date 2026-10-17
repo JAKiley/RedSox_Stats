@@ -199,6 +199,34 @@ def roster():
     return jsonify(records)
 
 
+@app.route("/api/redsox_upcoming")
+def upcoming():
+    # Today plus the next 6 days, so a full week of games
+    today = date.today()
+    games = statsapi.schedule(
+        team=RED_SOX_ID,
+        start_date=today.strftime('%Y-%m-%d'),
+        end_date=(today + timedelta(days=6)).strftime('%Y-%m-%d'),
+    )
+
+    records = []
+    for game in games:
+        sox_home = game['home_id'] == RED_SOX_ID
+        records.append({
+            "date": game['game_date'],
+            # UTC start time; the browser shows it in the viewer's time zone
+            "datetime": game['game_datetime'],
+            "status": game['status'],
+            "homeAway": "vs" if sox_home else "at",
+            "opponent": game['away_name'] if sox_home else game['home_name'],
+            "venue": game['venue_name'],
+            "soxPitcher": (game['home_probable_pitcher'] if sox_home else game['away_probable_pitcher']) or "TBD",
+            "oppPitcher": (game['away_probable_pitcher'] if sox_home else game['home_probable_pitcher']) or "TBD",
+        })
+
+    return jsonify(records)
+
+
 def fetch_team_leaders(season: int) -> list:
     """Return the raw teamLeaders list for a season, or [] if MLB has none yet."""
     try:
