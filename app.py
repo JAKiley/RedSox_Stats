@@ -2,6 +2,7 @@
 from datetime import date, timedelta
 
 from flask import Flask, jsonify, request, send_from_directory
+import requests
 import statsapi
 from werkzeug.exceptions import HTTPException
 
@@ -10,6 +11,20 @@ app = Flask(__name__, static_folder="static", static_url_path="/static")
 RED_SOX_ID = 111
 AMERICAN_LEAGUE_ID = 103
 AL_EAST_ID = 201
+
+# Team leader categories shown on the page: (API category, stat group, label).
+# The same category can come back for several groups (homeRuns is also
+# "home runs allowed" for pitchers), so each one is tied to a group.
+LEADER_CATEGORIES = [
+    ("battingAverage", "hitting", "Batting Average"),
+    ("homeRuns", "hitting", "Home Runs"),
+    ("runsBattedIn", "hitting", "RBI"),
+    ("earnedRunAverage", "pitching", "ERA"),
+    ("wins", "pitching", "Wins"),
+    ("strikeouts", "pitching", "Strikeouts (Pitching)"),
+    ("saves", "pitching", "Saves"),
+]
+LEADER_LIMIT = 3
 
 
 def player_url(full_name: str, player_id: int) -> str:
@@ -182,6 +197,58 @@ def roster():
         })
 
     return jsonify(records)
+
+
+def fetch_team_leaders(season: int) -> list:
+    """Return the raw teamLeaders list for a season, or [] if MLB has none yet."""
+    try:
+        data = statsapi.get('team_leaders', {
+            'teamId': RED_SOX_ID,
+            'leaderCategories': ",".join(cat for cat, _, _ in LEADER_CATEGORIES),
+            'season': season,
+            'limit': LEADER_LIMIT,
+        })
+    except requests.HTTPError as err:
+        # MLB answers 404 for a season that hasn't started
+        if err.response is not None and err.response.status_code == 404:
+            return []
+        raise
+    return data.get('teamLeaders', [])
+
+
+@app.route("/api/redsox_leaders")
+def leaders():
+    # Before Opening Day there are no stats for the new year yet,
+    # so fall back to last season's leaders
+    season = date.today().year
+    team_leaders = fetch_team_leaders(season)
+    if not any(group.get('leaders') for group in team_leaders):
+        season -= 1
+        team_leaders = fetch_team_leaders(season)
+
+    by_category = {
+        (group.get('leaderCategory'), group.get('statGroup')): group.get('leaders', [])
+        for group in team_leaders
+    }
+
+    categories = []
+    for category, stat_group, label in LEADER_CATEGORIES:
+        players = []
+        for leader in by_category.get((category, stat_group), []):
+            person = leader.get('person') or {}
+            full_name = person.get('fullName')
+            person_id = person.get('id')
+            if not full_name or not person_id:
+                continue
+            players.append({
+                "rank": leader.get('rank'),
+                "name": full_name,
+                "value": leader.get('value'),
+                "formatted_link": player_url(full_name, person_id),
+            })
+        categories.append({"label": label, "leaders": players})
+
+    return jsonify({"season": season, "categories": categories})
 
 
 @app.errorhandler(Exception)

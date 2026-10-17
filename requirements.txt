@@ -1,3 +1,4 @@
 flask==3.1.2
 gunicorn
 MLB-StatsAPI==1.9.0
+requests

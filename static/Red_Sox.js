@@ -250,6 +250,51 @@ async function loadStandings() {
   }
 }
 
+async function loadLeaders() {
+  try {
+    const res = await fetch("/api/redsox_leaders");
+    if (!res.ok) throw new Error("Network response was not ok");
+    const data = await res.json();
+
+    document.querySelector("#leadersSeason").textContent = data.season;
+
+    const tbody = document.querySelector("#leaders tbody");
+    tbody.innerHTML = "";
+
+    const fragment = document.createDocumentFragment();
+
+    for (const category of data.categories) {
+      const tr = document.createElement("tr");
+
+      const labelTd = document.createElement("td");
+      labelTd.textContent = category.label;
+      labelTd.className = "left";
+      tr.appendChild(labelTd);
+
+      // Always draw three cells so short categories keep the table square
+      for (let i = 0; i < 3; i++) {
+        const td = document.createElement("td");
+        const leader = category.leaders[i];
+        if (leader) {
+          td.className = "left";
+          td.innerHTML = `<a href='${leader.formatted_link}' target='_blank'>${leader.name}</a> ${leader.value}`;
+        }
+        tr.appendChild(td);
+      }
+
+      fragment.appendChild(tr);
+    }
+
+    tbody.appendChild(fragment);
+
+    document.getElementById("status").style.display = "none";
+    document.getElementById("leaders").style.display = "block";
+  } catch (err) {
+    document.getElementById("status").textContent = "Error loading stats.";
+    console.error(err);
+  }
+}
+
 async function loadTransactions() {
   try {
     const res = await fetch("/api/redsox_transactions");
@@ -328,5 +373,6 @@ async function loadRoster() {
 
 loadGameInfo();
 loadStandings();
+loadLeaders();
 loadTransactions();
 loadRoster();
